@@ -171,11 +171,13 @@ class Window():
 				if arr[j][0] > arr[j+1][0]:
 					arr[j], arr[j+1] = arr[j+1], arr[j]
 
+		boo = False
 		for i in range(len(arr)):
-			if (sum(self._A) == 0 and sum(self._B) == 0):
+			if (sum(self._A) == 0 and sum(self._B) == 0) or (boo):
 				break
 			top = arr[i][1][0]
 			gor = arr[i][1][1]
+
 			if (self._A[top] < self._B[gor]) and (self._A[top] != 0):
 				self.PLAN[top][gor] = self._A[top]
 				self._B[gor] -= self._A[top]
@@ -199,7 +201,7 @@ class Window():
 			for i in range(len(self.A)):
 				if boo:
 					for j in range(len(self.B)):
-						if self.Circle(i, j) == None:
+						if self.Circle(i, j) == None and self.PLAN[i][j] == '-':
 							self.PLAN[i][j] = 0
 							boo = False
 							break
@@ -215,7 +217,6 @@ class Window():
 			# ШАГ 5
 			U = [None] * len(self.A)
 			V = [None] * len(self.B)
-
 			U[basis[0][0]] = 0
 			for k in range(len(basis)):
 				for i in range(len(basis)):
