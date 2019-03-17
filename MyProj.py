@@ -2,7 +2,7 @@ from PIL import Image, ImageDraw
 import threading
 import time
 
-image = Image.open("C:\\Users\\asus\\Desktop\\holst.jpg")
+image = Image.open("C:\\Users\\asus\\Desktop\\lab\\holst.jpg")
 print("Начальное изображение")
 print()
 image.show()
