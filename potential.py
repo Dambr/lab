@@ -142,7 +142,8 @@ class Window():
 		self.button.bind('<ButtonRelease-1>', self.main)
 		self.button.place(x = 467, y = 207)
 
-		
+	#def cyckle( self, arg):
+
 
 
 	def vertical( self, arg ):
@@ -157,8 +158,16 @@ class Window():
 		for i in range( len( dots ) ):
 			for j in range( len( self.B ) ):
 				if j != dots[ i ][ 1 ] and self.PLAN[ dots[ i ][ 0 ] ][ j ] != '-':
-					answer = dots[ i ]
+					for k in range( len( self.A ) ):
+						if k != dots[ i ][ 0 ] and self.PLAN[ k ][ j ] != '-':
+							for g in range( len( self.B ) ):
+								if g != j and self.PLAN[ k ][ g ] != '-':
+									for t in range ( len( self.A ) ):
+										if t != k and self.PLAN[ t ][ g ] != '-':
+												return dots[ i ]
 		return answer
+
+
 
 	def horizontal( self, arg ):
 		'''
@@ -169,10 +178,18 @@ class Window():
 		for i in range( len( self.B ) ):
 			if self.PLAN[ arg[ 0 ] ][ i ] is  not '-' and [ arg[ 0 ], i ] not in self.cickle:
 				dots.append( [ arg[ 0 ], i ] )
+			if self.PLAN[ arg[ 0 ] ][ i ] == '+':
+				return [ arg[ 0 ], i ]
 		for i in range( len( dots ) ):
 			for j in range( len( self.A ) ):
 				if j != dots[ i ][ 0 ] and self.PLAN[ j ][ dots[ i ][ 1 ] ] != '-':
-					answer = dots[ i ]
+					for k in range( len( self.B ) ):
+						if k != dots[ i ][ 1 ] and self.PLAN[ j ][ k ] != '-':
+							for g in range( len( self.A ) ):
+								if g != j and self.PLAN[ g ][ k ] != '-':
+									for t in range( len( self.B ) ):
+										if t != k and self.PLAN[ j ][ t ] != '-':
+											return dots[ i ]
 		return answer
 
 	def delta( self, arr ):
@@ -198,8 +215,21 @@ class Window():
 				[ int( self.enters[18].get() ), int( self.enters[19].get() ), int( self.enters[20].get() ), int( self.enters[21].get() ), int( self.enters[22].get() ) ]
 			]
 		except:
-			messagebox.showinfo('Ошибка', 'Внесены данные, которые не удается обработать.')
+			messagebox.showerror('Ошибка', 'Внесены данные, которые не удается обработать.')
 			return
+		for i in self.A:
+			if i < 1:
+				messagebox.showerror('Ошибка', 'Значения вектора А должны быть больше 0')
+				return
+		for i in self.B:
+			if i < 1:
+				messagebox.showerror('Ошибка', 'Значения вектора B должны быть больше 0')
+				return
+		for stb in self.C:
+			for val in stb:
+				if val < 1:
+					messagebox.showerror('Ошибка', 'Значения матрицы С должны быть больше 0')
+					return
 		'''
 			# Задаем вектов А
 		self.A = [ 10, 15, 25 ]
@@ -217,18 +247,28 @@ class Window():
 			# Дельты C
 		self.deltaC = []
 
-			# Первоначальный план пуст
-		self.PLAN = [ [ '-' for i in range( len( self.B ) ) ] for j in range( len( self.A ) ) ]
+			
+		
 
 			#		Шаг 2. Проверка задачи на закрытость
 
 		if sum( self.A ) != sum( self.B ):
-			#print( 'Задача является открытой' )
-			messagebox.showerror('Ошибка!', 'Задача является открытой')
-			return
+			if sum( self.A ) > sum( self.B ):
+				messagebox.showinfo('Информация', 'Суммарный запас товаров превышает суммарную потребность.\nПоэтому будет добавлен еще один потребитель.\nТариф на доставку к нему равен 0 ден. ед.\n Его потребности составляют ' + str( sum( self.A ) - sum( self.B ) ) + ' тов. ед.' )
+				self.B.append( sum( self.A ) - sum( self.B ) )
+				for i in range( len( self.A ) ):
+					self.C[ i ].append( 0 )
+			else:
+				messagebox.showinfo('Информация', 'Суммарная потребность превышает суммарный запас.\nПоэтому будет добавлен еще один поставщик.\nТариф на доставку от него равен 0 ден. ед.\n Его запас составляет ' + str( sum( self.B ) - sum( self.A ) ) + ' тов. ед.' )
+				self.A.append( sum( self.B ) - sum( self.A ) )
+				self.C.append( [ 0 ] * len( self.B ) )
+		# Первоначальный план пуст
+
+		self.PLAN = [ [ '-' for i in range( len( self.B ) ) ] for j in range( len( self.A ) ) ]
 
 			#		Шаг 3. Составление опорного плана
 			#		Используется метод Фогеля (аппроксимация Фогеля)
+
 
 		while sum( self.A ) != 0 and sum( self.B ) != 0:
 				# Массив дельт по столбцу
@@ -312,21 +352,36 @@ class Window():
 				else:
 					count += 1
 
-		if count < len( self.A ) + len( self.B ) - 1:
-			#messagebox.showerror('Ошибка', 'План вырожденный')
-			return
-			for i in range ( len( self.PLAN ) ):
-				for j in range ( len( self.PLAN[ i ] ) ):
-					self.cickle = []
-					self.cickle.append( self.vertical( [i, j] ) )
-					while True:
-						if self.cickle[ len( self.cickle ) - 1 ][ 0 ] is  i and self.cickle[ len( self.cickle ) - 1 ][ 1 ] is j:
-							break
-						self.cickle.append( self.horizontal( self.cickle[ len( self.cickle ) - 1 ] ) )
-						if self.cickle[ len( self.cickle ) - 1 ][ 0 ] is  i and self.cickle[ len( self.cickle ) - 1 ][ 1 ] is j:
-							break
-						self.cickle.append( self.vertical( self.cickle[ len( self.cickle ) - 1 ] ) )
+		#if count < len( self.A ) + len( self.B ) - 1:
+		#	messagebox.showerror('Ошибка', 'План вырожденный')
 
+		while count < len( self.A ) + len( self.B ) - 1:
+			flag = False
+			for i in range ( len( self.PLAN ) ):
+				if flag:
+					break
+				for j in range ( len( self.PLAN[ i ] ) ):
+					if self.PLAN[ i ][ j ] == '-':
+						self.cickle = []
+						try:
+							self.PLAN[ i ][ j ] = '+'
+							self.cickle.append( self.vertical( [i, j] ) )
+							while True:
+								if self.cickle[ len( self.cickle ) - 1 ][ 0 ] is  i and self.cickle[ len( self.cickle ) - 1 ][ 1 ] is j:
+									break
+								self.cickle.append( self.horizontal( self.cickle[ len( self.cickle ) - 1 ] ) )
+								if self.cickle[ len( self.cickle ) - 1 ][ 0 ] is  i and self.cickle[ len( self.cickle ) - 1 ][ 1 ] is j:
+									break
+								self.cickle.append( self.vertical( self.cickle[ len( self.cickle ) - 1 ] ) )
+							self.PLAN[ i ][ j ] = '-'
+						except:
+							self.PLAN[ i ][ j ] = 0
+							count += 1
+							flag = True
+							break
+				
+
+		
 		while True:
 			# Задаем базисные точки
 			basis = []
@@ -334,7 +389,6 @@ class Window():
 				for j in range( len( self.PLAN[ i ] ) ):
 					if self.PLAN[ i ][ j ] != '-':
 						basis.append( [ i, j ] )
-
 				#	Шаг 5. Вычисление потенциалов для плана перевозки
 				# Задание первоначальных неопределенных потенциалов
 
@@ -360,10 +414,10 @@ class Window():
 				# Проверка плана маршрута на оптимальность
 			if min( self.deltaC )[ 0 ] >= 0:
 				break
-
 			self.PLAN[ min( self.deltaC )[ 1 ][ 0 ] ][ min( self.deltaC )[ 1 ][ 1 ] ] = '+'
 
 				#	Шаг 7. Перераспределение поставок
+			
 			self.cickle = []
 			self.cickle.append( self.vertical( [ min( self.deltaC )[ 1 ][ 0 ], min( self.deltaC )[ 1 ][ 1 ] ] ) )
 			while True:
@@ -374,7 +428,7 @@ class Window():
 					break
 				self.cickle.append( self.vertical( self.cickle[ len( self.cickle ) - 1 ] ) )
 
-			self.PLAN[ self.cickle[ len( self.cickle ) - 1 ][ 0 ] ][ self.cickle[ len( self.cickle ) - 1 ][ 1 ] ] = 0
+			self.PLAN[ min( self.deltaC )[ 1 ][ 0 ] ][ min( self.deltaC )[ 1 ][ 1 ] ] = 0
 			
 				# Обозначим массив со знаком минус и заполним его
 			minus = []
@@ -394,10 +448,13 @@ class Window():
 				# Находим минимальный минимальный элемент из массива pminus.
 				# Вычитаем его значение из всех отрицательных элементов плана.
 				# Прибавляем его значение ко всем положительным элементам плана
+			boo = True
 			for i in range( len( minus ) ):
 				self.PLAN[ minus[ i ][ 0 ] ][ minus[ i ][ 1 ] ] -= min( pminus )
-				if self.PLAN[ minus[ i ][ 0 ] ][ minus[ i ][ 1 ] ] is 0:
+				if self.PLAN[ minus[ i ][ 0 ] ][ minus[ i ][ 1 ] ] is 0 and boo:
 					self.PLAN[ minus[ i ][ 0 ] ][ minus[ i ][ 1 ] ] = '-'
+					boo = False
+
 			for i in range( len( plus ) ):
 				self.PLAN[ plus[ i ][ 0 ] ][ plus[ i ][ 1 ] ] += min( pminus )
 			#	Шаг 8. Переходим к пункту 5
@@ -412,33 +469,42 @@ class Window():
 
 		for i in range( len( self.PLAN ) ):
 			for j in range( len( self.PLAN[ i ] ) ):
-				self.labels[ 11 + ( j + i * 5 ) ][ 'text' ] = self.PLAN[ i ][ j ]
+				try:
+					self.labels[ 11 + ( j + i * 5 ) ][ 'text' ] = self.PLAN[ i ][ j ]
+				except:
+					pass
 
 
 		child = Tk()
 		child.title('Граф перевозок')
-		child.iconbitmap('2.ico')
+#		child.iconbitmap('C:\\Users\\asus\\Desktop\\7\\2.ico')
 		child.wm_geometry('680x320')
 		child.config(bg  = '#06D076')
 		child.resizable(width=False, height=False)
 		c = Canvas(child, width=680, height=320, bg='#06D076')
 		c.pack()
 		c.create_text(285, 20, anchor=W, font=('Comic Sans MS', 14), text='Стоимость: ' + str(Z), fill='#7E62BC')
+		par = 100
 		for i in range( len( self.B ) ):
-			c.create_oval(25 + i * 125, 50, 75 + i * 125, 100, width=2, outline='#EB7400')
-			c.create_text(40 + i * 125, 75, anchor=W, font=('Comic Sans MS', 14), text='B' + str( i + 1 ), fill='#EB7400')
+			c.create_oval(25 + i * par, 50, 75 + i * par, 100, width=2, outline='#EB7400')
+			c.create_text(40 + i * par, 75, anchor=W, font=('Comic Sans MS', 14), text='B' + str( i + 1 ), fill='#EB7400')
 		for i in range( len( self.A ) ):
-			c.create_oval(155 + i * 125, 250, 205 + i * 125, 300, width=2, outline='#DAD2D2')
-			c.create_text(170 + i * 125,  275, anchor=W, font=('Comic Sans MS', 14), text='A' + str( i + 1 ), fill='#DAD2D2')
+			c.create_oval(150 + i * par, 250, 200 + i * par, 300, width=2, outline='#DAD2D2')
+			c.create_text(165 + i * par,  275, anchor=W, font=('Comic Sans MS', 14), text='A' + str( i + 1 ), fill='#DAD2D2')
 		for i in range( len( self.PLAN ) ):
 			for j in range( len( self.PLAN[ i ] ) ):
 				if self.PLAN[i][j] != '-' and self.PLAN[i][j] != 0:
-					xtop = 50 + j * 125
+					xtop = 50 + j * par
 					ytop = 100
-					xbot = 180 + i * 125
+					xbot = 175 + i * par
 					ybot = 250
 					c.create_line(xbot, ybot, xtop, ytop, fill='#212BCA', arrow=LAST, arrowshape='5 12 5', width = 2)
-					c.create_text(xtop+30, ytop + ( i - ( len( self.B ) - len( self.A ) ) )*20, anchor=W, font=('Comic Sans MS', 14), text=str(self.PLAN[i][j]), fill='#2C726C')
+					if sum( self.B ) > sum( self.A ):
+						c.create_text(xtop + 30, ytop + ( i - 1 - ( len( self.B ) - len( self.A ) ) )*20, anchor=W, font=('Comic Sans MS', 14), text=str(self.PLAN[i][j]), fill='#2C726C')
+					elif sum( self.A ) > sum( self.B ):
+						c.create_text(xtop + 30, ytop + ( i + 1 + ( len( self.A ) - len( self.B ) ) )*20, anchor=W, font=('Comic Sans MS', 14), text=str(self.PLAN[i][j]), fill='#2C726C')
+					else:
+						c.create_text(xtop + 30, ytop + (i - 2)*20, anchor=W, font=('Comic Sans MS', 14), text=str(self.PLAN[i][j]), fill='#2C726C')
 			c.create_text(620, 60 + i * 20, anchor=W, font=('Comic Sans MS', 14), text='от A' + str( i + 1 ), fill='#726565')
 
 
@@ -448,7 +514,7 @@ margin_y = (root.winfo_screenheight() - root.winfo_reqheight())
 root.title('Задача транспортной логистики. Метод потенциалов')
 root.wm_geometry('560x270+%d+%d' % (margin_x/3, margin_y/3))
 root.config(bg  = '#DDAC46')
-root.iconbitmap('1.ico')
+#root.iconbitmap('C:\\Users\\asus\\Desktop\\7\\1.ico')
 root.resizable(width=False, height=False)
 obj = Window()
 root.mainloop()
