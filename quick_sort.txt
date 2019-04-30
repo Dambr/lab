@@ -1,0 +1,379 @@
+#include "stdafx.h"
+
+#include <iostream>
+#include <thread>
+#include "windows.h"
+
+
+//Структура для хранении пары
+struct qSortIndex
+{
+    int lo, hi;
+};
+
+
+//реализую простейшую очередь
+struct queue{
+    qSortIndex** pair;
+    LONG size;
+    int max_size;
+
+	CRITICAL_SECTION critsect;
+};
+
+void init_queue(queue* Q, int max_size)
+{
+	InitializeCriticalSection(&Q->critsect);
+	Q->pair = (qSortIndex**)malloc(max_size * sizeof(qSortIndex*));
+    Q->max_size = max_size;
+    Q->size = 0;
+}
+
+int notEmpty(queue* Q)
+{
+    return Q->size > 0;
+}
+
+qSortIndex* dequeue(queue* Q)
+{
+	LONG i;
+	qSortIndex* qIndex;
+
+	EnterCriticalSection(&Q->critsect);
+	//i = InterlockedDecrement(&Q->size);
+	qIndex = Q->pair[Q->size--];
+	LeaveCriticalSection(&Q->critsect);
+	return qIndex;
+
+}
+
+void enqueue(queue* Q, qSortIndex* d)
+{
+	LONG i;
+	EnterCriticalSection(&Q->critsect);
+	//i = InterlockedIncrement(&Q->size);
+	Q->pair[++Q->size] = d;
+	LeaveCriticalSection(&Q->critsect);
+}
+
+HANDLE hSem, tSignal;
+
+//Делю массив на две части
+int Partition (int* A, int p, int r)
+{
+    int x = A[p];
+    int k = p;
+    int l = r+1;
+    int t;
+    do k++; while ((A[k] <= x) && (k < r));
+    do l--; while (A[l] > x);
+    while (k < l) {
+        t = A[k];  A[k] = A[l];  A[l] = t;
+        do k++; while (A[k] <= x);
+        do l--; while (A[l] > x);
+    }
+    t = A[p];  A[p] = A[l];  A[l] = t;
+    return l;
+}
+
+void QuickSort(int* A, queue* Q)
+{
+    int p, r, q;
+    qSortIndex *d = NULL, *d1, *d2;
+    while (notEmpty(Q)) {
+        d = dequeue(Q);  //вытащить следующую пару из очереди
+        p = d->lo;
+        r = d->hi;
+        free(d);
+        if (p < r) { // проверка нужно ли сортировать
+            q = Partition(A, p, r);
+            // найдем индексы для левой порции
+            d1 = new qSortIndex;
+            d1->lo = p;
+            d1->hi = q-1;
+            enqueue(Q, d1);
+            // найдем индексы для правой порции
+            d2 = new qSortIndex;
+            d2->lo = q+1;
+            d2->hi = r;
+            enqueue(Q, d2);
+        }
+    }
+}
+
+void ParallelSafeQuickSort(int* A, queue* Q, int N, LONG* tCount, bool* Done)
+{
+    int p, r, q;
+    int t;
+    qSortIndex *d = NULL, *d1, *d2;
+    while (1) {
+        //!!Здесь проверять семафор
+		WaitForSingleObject(hSem, INFINITE);
+        if (*Done) break;
+        d = dequeue(Q);  //вытащить следующую пару из очереди
+        p = d->lo;
+        r = d->hi;
+        free(d);
+        if (p < r) { // проверка нужно ли сортировать
+            q = Partition(A, p, r);
+			t = InterlockedIncrement(tCount); //!!Должен быть атомарный инкремент после того как нашли средний элемент
+            // найдем индексы для левой порции
+            d1 = new qSortIndex;
+            d1->lo = p;
+            d1->hi = q-1;
+            enqueue(Q, d1);
+            // найдем индексы для правой порции
+            d2 = new qSortIndex;
+            d2->lo = q+1;
+            d2->hi = r;
+            enqueue(Q, d2);
+            //!!Здесь уменьшить счетчик семафора на 2
+			ReleaseSemaphore(hSem, 2, NULL);
+        }
+        else if (p == r) {
+            t = InterlockedIncrement(tCount); //!!Должен быть атомарный инкремент
+            if (t == N)
+            {
+                //Какое то событие или условная переменная
+				SetEvent(tSignal);
+            }
+        }
+    }
+}
+
+int main(int argc, const char * argv[]) {
+    // insert code here...
+	srand( time(NULL));
+
+    int num_proc = std::thread::hardware_concurrency();
+    int N = 1000;
+    queue* Q = new queue();
+    init_queue(Q, 100);
+	int* A = new int[N];
+	for (int i = 0; i < N; i++)
+		A[i] = rand();
+    qSortIndex* e1 = new qSortIndex;
+    e1->lo = 0; e1->hi = N - 1;
+    enqueue(Q, e1);
+    //QuickSort(A, Q);
+	hSem = CreateSemaphore(NULL, 1, N, NULL);
+	tSignal = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    LONG threadCounter = 0;
+    bool Done = false;
+    std::thread* th = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+    std::thread* th1 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+	std::thread* th2 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+	std::thread* th3 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+    //th->join();
+    //th1->join();
+	WaitForSingleObject(tSignal, INFINITE);
+	Done = true;
+	ReleaseSemaphore(hSem, N, NULL);
+
+    std::cout << "Получил результат!\n";
+    for(int i = 0; i < N; i++){
+        std::cout << A[i] << " ";
+    }
+    std::cout << std::endl;
+	getchar();
+    return 0;
+}
+// qsort.cpp: определяет точку входа для консольного приложения.
+//
+
+//
+//  main.cpp
+//  qsort
+//
+//  Created by  Григогорий Семенов on 08/03/2019.
+//  Copyright © 2019  Григогорий Семенов. All rights reserved.
+//
+//
+//  main.cpp
+//  qsort
+//
+//  Created by  Григогорий Семенов on 08/03/2019.
+//  Copyright © 2019  Григогорий Семенов. All rights reserved.
+//
+#include "stdafx.h"
+
+#include <iostream>
+#include <thread>
+#include "windows.h"
+
+
+//Структура для хранении пары
+struct qSortIndex
+{
+    int lo, hi;
+};
+
+
+//реализую простейшую очередь
+struct queue{
+    qSortIndex** pair;
+    LONG size;
+    int max_size;
+
+	CRITICAL_SECTION critsect;
+};
+
+void init_queue(queue* Q, int max_size)
+{
+	InitializeCriticalSection(&Q->critsect);
+	Q->pair = (qSortIndex**)malloc(max_size * sizeof(qSortIndex*));
+    Q->max_size = max_size;
+    Q->size = 0;
+}
+
+int notEmpty(queue* Q)
+{
+    return Q->size > 0;
+}
+
+qSortIndex* dequeue(queue* Q)
+{
+	LONG i;
+	qSortIndex* qIndex;
+
+	EnterCriticalSection(&Q->critsect);
+	//i = InterlockedDecrement(&Q->size);
+	qIndex = Q->pair[Q->size--];
+	LeaveCriticalSection(&Q->critsect);
+	return qIndex;
+
+}
+
+void enqueue(queue* Q, qSortIndex* d)
+{
+	LONG i;
+	EnterCriticalSection(&Q->critsect);
+	//i = InterlockedIncrement(&Q->size);
+	Q->pair[++Q->size] = d;
+	LeaveCriticalSection(&Q->critsect);
+}
+
+HANDLE hSem, tSignal;
+
+//Делю массив на две части
+int Partition (int* A, int p, int r)
+{
+    int x = A[p];
+    int k = p;
+    int l = r+1;
+    int t;
+    do k++; while ((A[k] <= x) && (k < r));
+    do l--; while (A[l] > x);
+    while (k < l) {
+        t = A[k];  A[k] = A[l];  A[l] = t;
+        do k++; while (A[k] <= x);
+        do l--; while (A[l] > x);
+    }
+    t = A[p];  A[p] = A[l];  A[l] = t;
+    return l;
+}
+
+void QuickSort(int* A, queue* Q)
+{
+    int p, r, q;
+    qSortIndex *d = NULL, *d1, *d2;
+    while (notEmpty(Q)) {
+        d = dequeue(Q);  //вытащить следующую пару из очереди
+        p = d->lo;
+        r = d->hi;
+        free(d);
+        if (p < r) { // проверка нужно ли сортировать
+            q = Partition(A, p, r);
+            // найдем индексы для левой порции
+            d1 = new qSortIndex;
+            d1->lo = p;
+            d1->hi = q-1;
+            enqueue(Q, d1);
+            // найдем индексы для правой порции
+            d2 = new qSortIndex;
+            d2->lo = q+1;
+            d2->hi = r;
+            enqueue(Q, d2);
+        }
+    }
+}
+
+void ParallelSafeQuickSort(int* A, queue* Q, int N, LONG* tCount, bool* Done)
+{
+    int p, r, q;
+    int t;
+    qSortIndex *d = NULL, *d1, *d2;
+    while (1) {
+        //!!Здесь проверять семафор
+		WaitForSingleObject(hSem, INFINITE);
+        if (*Done) break;
+        d = dequeue(Q);  //вытащить следующую пару из очереди
+        p = d->lo;
+        r = d->hi;
+        free(d);
+        if (p < r) { // проверка нужно ли сортировать
+            q = Partition(A, p, r);
+			t = InterlockedIncrement(tCount); //!!Должен быть атомарный инкремент после того как нашли средний элемент
+            // найдем индексы для левой порции
+            d1 = new qSortIndex;
+            d1->lo = p;
+            d1->hi = q-1;
+            enqueue(Q, d1);
+            // найдем индексы для правой порции
+            d2 = new qSortIndex;
+            d2->lo = q+1;
+            d2->hi = r;
+            enqueue(Q, d2);
+            //!!Здесь уменьшить счетчик семафора на 2
+			ReleaseSemaphore(hSem, 2, NULL);
+        }
+        else if (p == r) {
+            t = InterlockedIncrement(tCount); //!!Должен быть атомарный инкремент
+            if (t == N)
+            {
+                //Какое то событие или условная переменная
+				SetEvent(tSignal);
+            }
+        }
+    }
+}
+
+int main(int argc, const char * argv[]) {
+    // insert code here...
+	srand( time(NULL));
+
+    int num_proc = std::thread::hardware_concurrency();
+    int N = 1000;
+    queue* Q = new queue();
+    init_queue(Q, 100);
+	int* A = new int[N];
+	for (int i = 0; i < N; i++)
+		A[i] = rand();
+    qSortIndex* e1 = new qSortIndex;
+    e1->lo = 0; e1->hi = N - 1;
+    enqueue(Q, e1);
+    //QuickSort(A, Q);
+	hSem = CreateSemaphore(NULL, 1, N, NULL);
+	tSignal = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+    LONG threadCounter = 0;
+    bool Done = false;
+    std::thread* th = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+    std::thread* th1 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+	std::thread* th2 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+	std::thread* th3 = new std::thread(ParallelSafeQuickSort, A, Q, N, &threadCounter, &Done);
+    //th->join();
+    //th1->join();
+	WaitForSingleObject(tSignal, INFINITE);
+	Done = true;
+	ReleaseSemaphore(hSem, N, NULL);
+
+    std::cout << "Получил результат!\n";
+    for(int i = 0; i < N; i++){
+        std::cout << A[i] << " ";
+    }
+    std::cout << std::endl;
+	getchar();
+    return 0;
+}

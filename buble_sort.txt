@@ -1,0 +1,130 @@
+// bsort.cpp: определяет точку входа для консольного приложения.
+//
+
+#include "stdafx.h"
+
+
+//#include <iostream>
+#define _USE_MATH_DEFINES
+
+#include <math.h>
+#include <time.h>
+#include <queue>
+#include <iostream>
+#include <thread>
+#include <windows.h>
+
+
+
+/* run this program using the console pauser or add your own getch, system("pause") or input loop */
+
+#define _USE_MATH_DEFINES
+
+#include <math.h>
+#include <time.h>
+#include <queue>
+#include <iostream>
+#include <thread>
+#include "windows.h"
+
+
+/* run this program using the console pauser or add your own getch, system("pause") or input loop */
+
+bool Done = FALSE;
+CRITICAL_SECTION* BLock;
+
+void BubbleSort(int *A, int N)
+{
+	int i, j;
+	int temp;
+	for (i = N - 1; i > 0; i--) {
+		for (j = 0; j < i; j++) {
+			if (A[j] > A[j + 1]) {
+				temp = A[j]; A[j] = A[j + 1]; A[j + 1] = temp;
+			}
+		}
+	}
+}
+
+
+void BubbleSort_Parallel(int* A, long N, int NUM_LOCKS)
+{
+	int i, j, k, releasePoint, temp, rpInc;
+	BOOL exch;
+	int iCounter = N - 1;
+	rpInc = N / NUM_LOCKS;
+	rpInc++;
+	while (!Done) {
+		k = 0;
+		exch = FALSE;
+		EnterCriticalSection(&BLock[k]);
+		i = iCounter--;
+		releasePoint = rpInc;
+		if (i <= 0) {
+			Done = TRUE;
+			LeaveCriticalSection(&BLock[k]);
+			break;
+		}
+		for (j = 0; j < i; j++) {
+			if (A[j] > A[j + 1]) {
+				temp = A[j]; A[j] = A[j + 1]; A[j + 1] = temp;
+				exch = TRUE;
+			}
+			if (j == releasePoint) {
+				LeaveCriticalSection(&BLock[k++]);
+				EnterCriticalSection(&BLock[k]);
+				releasePoint += rpInc;
+			}
+		}
+		LeaveCriticalSection(&BLock[k]);
+		if (!exch) Done = TRUE;
+	}
+}
+
+
+int main()
+{
+	int s, e;
+	srand(time(NULL));
+	int N = 50000;
+	int* A = new int[N];
+	int* B = new int[N];
+	for (long i = 0; i < N; i++)
+		B[i] = A[i] = rand();
+	s = clock();
+	BubbleSort(A, N);
+	e = clock();
+	std::cout << "Sorted array 1 core!\n";
+	for (long i = 0; i < 5; i++) {
+		std::cout << A[i] << " ";
+	}
+	std::cout << "Time elapsed: " << (e - s) / CLOCKS_PER_SEC << std::endl;
+
+	int num_proc = std::thread::hardware_concurrency();
+	BLock = new CRITICAL_SECTION[num_proc];
+	for (int i = 0; i < num_proc; i++)
+		InitializeCriticalSection(&BLock[i]);
+	std::queue<std::thread*> qu;
+	std::thread* t;
+	std::cout << "Sorted array " << num_proc << " core!\n";
+	s = clock();
+	for (int i = 0; i < num_proc; i++)
+	{
+		t = new std::thread(BubbleSort_Parallel, B, N, num_proc);
+		qu.push(t);
+	}
+	while (!qu.empty())
+	{
+		t = qu.front();
+		t->join();
+		qu.pop();
+	}
+	e = clock();
+
+	for (long i = 0; i < 5; i++) {
+		std::cout << B[i] << " ";
+	}
+	std::cout << "Time elapsed: " << (e - s) / CLOCKS_PER_SEC << std::endl;
+
+	return 0;
+}
