@@ -1,3 +1,5 @@
+// Массив заполняется змейкой
+
 const maxValue = 5;
 const defaultNumber = 10;
 
