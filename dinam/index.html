@@ -1,0 +1,319 @@
+<body>
+    <style>
+        input{
+            margin-left: 20px;
+        }
+        #ABC{
+            display: inline-block;
+            vertical-align: top;
+        }
+        #ABC input{
+            width: 100px;
+        }
+        .h, .d{
+            width: 200px;
+        }
+				td{
+					min-width: 80px;
+					border-style: solid;
+					text-align: center;
+				}
+    </style>
+    <center>
+        <div id="ABC">
+            <input type="number" placeholder="a" id="a" value="4">
+            <input type="number" placeholder="b" id="b" value="1">
+            <input type="number" placeholder="c" id="c" value="2">
+            <br>
+            <button onclick="addNewChart()" style="margin: 20px;">Добавить поле</button>
+            <button onclick="main()" style="margin: 20px;">Рассчитать</button>
+        </div>
+        <div id="D_H" style="display: inline-block;">
+            <input type="number" placeholder="Отпустить заказчику" class="d" value="3"><input type="number" placeholder="Затраты на хранение" class="h" value="6"><br><input type="number" placeholder="Отпустить заказчику" class="d" value="1"><input type="number" placeholder="Затраты на хранение" class="h" value="3"><br><input type="number" placeholder="Отпустить заказчику" class="d" value="2"><input type="number" placeholder="Затраты на хранение" class="h" value="5"><br>
+        </div>
+    </center>
+    <script>
+        function addNewChart(){
+            let input1 = document.createElement('input')
+            let input2 = document.createElement('input')
+            input1.className = "d"
+            input2.className = "h"
+            input1.placeholder = "Отпустить заказчику"
+            input2.placeholder = "Затраты на хранение"
+            document.getElementById('D_H').appendChild(input2)
+            document.getElementById('D_H').appendChild(input1)
+            document.getElementById('D_H').appendChild(document.createElement('br'))
+        }
+        function aim(a, b, c, h, y, f){
+            return function(x){
+                return a * x * x + b * x + c + y * h + f
+            }
+        }
+        function main(){
+						try{
+							document.body.removeChild(document.getElementById("table"))
+						}
+						catch(e){}
+            let d = []
+            for (let i = 0; i < document.getElementsByClassName("d").length; i++) {
+                if (document.getElementsByClassName("d")[i].value != ''){
+                    d.push(Number(document.getElementsByClassName("d")[i].value))
+                }
+            }
+            if (d.length != document.getElementsByClassName("d").length) {
+                alert('Все поля поставок должны быть заполнены')
+                return
+            }
+            
+            // let d = [3, 1, 2]
+            // let h = [6, 3, 5]
+            let h = []
+            for (let i = 0; i < document.getElementsByClassName("h").length; i++) {
+                if (document.getElementsByClassName("h")[i].value != ''){
+                    h.push(Number(document.getElementsByClassName("h")[i].value))
+                }
+            }
+            if (h.length != document.getElementsByClassName("h").length) {
+                alert('Все поля затрат на хранение должны быть заполнены')
+                return
+            }
+            if (document.getElementById('a').value == '' || 
+                document.getElementById('b').value == '' || 
+                document.getElementById('c').value == '') {
+                alert('Все поля a, b и c должны быть заполнены')
+                return
+            }
+            let data = {
+                'a': Number(document.getElementById('a').value),
+                'b': Number(document.getElementById('b').value),
+                'c': Number(document.getElementById('c').value)
+            }
+            console.log(d)
+            console.log(h)
+            console.log(data)
+            let history = {
+                0: {
+                    'y': 0,
+                    'F': {
+                        0: 0
+                    }
+                }
+            }
+            let x_min = []
+            let x = []
+            let y = []
+            let F = []
+            // 1й этап
+            let k = 1
+            // Вычисление range. От k-го до последнего
+            let r = 1
+            for (let i = k; i < d.length; i++){
+                r += d[i]
+            }
+            for (let _y = 0; _y < r; _y++){
+                x.push(_y + d[k-1] - 0)
+                y.push(_y)
+                F.push(aim(data['a'], data['b'], data['c'], h[k-1], _y, 0)(_y + d[k-1] + 0))
+            }
+            history[k] = {
+                'x': x,
+                'y': y,
+                '_F': F,
+                'F': Math.min(...F)
+            }
+            // console.log(history)
+            // 2й этап
+            k = 2
+
+            // Вычисление range. От k-го до последнего
+            r = 1
+            for (let i = k; i < d.length; i++){
+                r += d[i]
+            }
+            F = {}
+            y = {}
+            for (let _y = 0; _y < r; _y++){
+                let y_p = []
+                let _F = []
+                let x = []
+                for (let _x = 0; _x < d[k-1] + _y + 1; _x++){
+                    x.push(_x)
+                    y_p.push(_y + d[k-1]-_x)
+                    _F.push(aim(data['a'], data['b'], data['c'], h[k-1], _y, history[k-1]['_F'][_y + d[k-1]-_x])(_x))
+                }
+                y[_y] = {}
+                y[_y]['x'] = x
+                y[_y]['y_p'] = y_p
+                y[_y]['_F'] = _F
+                y[_y]['F'] = Math.min(..._F)
+            }
+            history[k] = y
+            // 3й этап и последующие
+            for (let k = 3; k < d.length + 1; k++){
+                // Вычисление range. От k-го до последнего
+                let r = 1
+                for (let i = k; i < d.length; i++){
+                    r += d[i]
+                }
+                let F = {}
+                let y = {}
+                for (let _y = 0; _y < r; _y++){
+                    let y_p = []
+                    let _F = []
+                    let x = []
+                    for (let _x = 0; _x < d[k-1] + _y + 1; _x++){
+                        x.push(_x)
+												y_p.push(_y + d[k-1]-_x)
+												// console.log(history, k-1,)
+                        _F.push(aim(data['a'], data['b'], data['c'], h[k-1], _y, history[k-1][_y + d[k-1]-_x]['F'])(_x))
+                    }
+                    y[_y] = {}
+                    y[_y]['x'] = x
+                    y[_y]['y_p'] = y_p
+                    y[_y]['_F'] = _F
+                    y[_y]['F'] = Math.min(..._F)
+                }
+                history[k] = y
+            }
+            let Y = [0]
+            // Начало поиска минимальных значений
+            k = d.length
+            y = 0
+            Y.push(y)
+            x_min.push(history[k][y]['x'][history[k][y]['_F'].indexOf(history[k][y]['F'])])
+            // Предпоследнее оптимальное значение до первого
+            while (k > 2){
+                k -= 1
+                y = y + d[k] - x_min[x_min.length-1]
+                Y.push(y)
+                x_min.push(
+                    history[k][y]['x'][history[k][y]['_F'].indexOf(history[k][y]['F'])]
+                )
+            }
+            k -= 1
+            y = y + d[k] - x_min[x_min.length-1]
+            Y.push(y)
+            x_min.push(history[k]['x'][history[k]['_F'].indexOf(history[k]['F'])])
+            
+            Phi = x => data['a'] * x * x + data['b'] * x + data['c']
+            
+            x_min = x_min.reverse()
+            console.log('x', x_min, x_min.reduce((acc, val) => acc + val))
+            console.log('Y', Y.slice(0, Y.length - 1))
+            console.log('d', d, d.reduce((acc, val) => acc + val))
+            console.log('Y', Y.slice(1, Y.length))
+            let res = []
+            for (let x of x_min){
+                res.push(Phi(x))
+            }
+            console.log('$', res)
+            res=[]
+            idx = 0
+            for (y of Y.slice(1, Y.length)){
+                res.push(h[idx] * y)
+                idx+=1
+            }
+            console.log('%', res, res.reduce((acc, val) => acc + val))
+            
+            let names = [
+                'Продукции в начале месяца (y_1..y_n-1)', 'Произведено втечение месяца (x)',
+                'Отпущено заказчикам (d)', 'Осталось к концу месяца (y_2..y_n)',
+                'Затраты на производство (Phi(x))', 'Затраты на хранение (h * y_ост)'
+            ]
+            let table = document.createElement('table')
+            table.id = "table"
+            let tr = document.createElement('tr')
+            let td = document.createElement('td')
+            td.textContent = names[0]
+            tr.appendChild(td)
+            for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+                    let td = document.createElement('td')
+                    td.textContent = Y.slice(0, Y.length - 1)[j]
+                    tr.appendChild(td)
+            }
+            td = document.createElement('td')
+            td.textContent = x_min.reduce((acc, val) => acc + val)
+            tr.appendChild(td)
+            table.appendChild(tr)
+
+            tr = document.createElement('tr')
+            td = document.createElement('td')
+            td.textContent = names[1]
+            tr.appendChild(td)
+            for (x of x_min){
+                let td = document.createElement('td')
+                td.textContent = x
+                tr.appendChild(td)
+            }
+            // for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+            //         let td = document.createElement('td')
+            //         td.textContent = x_min[j]
+            //         tr.appendChild(td)
+            // }
+            table.appendChild(tr)
+
+            tr = document.createElement('tr')
+            td = document.createElement('td')
+            td.textContent = names[2]
+            tr.appendChild(td)
+            for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+                    let td = document.createElement('td')
+                    td.textContent = d[j]
+                    tr.appendChild(td)
+            }
+            td = document.createElement('td')
+            td.textContent = d.reduce((acc, val) => acc + val)
+            tr.appendChild(td)
+            table.appendChild(tr)
+
+            tr = document.createElement('tr')
+            td = document.createElement('td')
+            td.textContent = names[3]
+            tr.appendChild(td)
+            for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+                    let td = document.createElement('td')
+                    td.textContent = Y.slice(1, Y.length)[j]
+                    tr.appendChild(td)
+            }
+            table.appendChild(tr)
+
+            res = []
+            for (let x of x_min){
+                res.push(Phi(x))
+						}
+						tr = document.createElement('tr')
+						td = document.createElement('td')
+						td.textContent = names[4]
+						tr.appendChild(td)
+						for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+								let td = document.createElement('td')
+								td.textContent = res[j]
+								tr.appendChild(td)
+						}
+						table.appendChild(tr)
+
+						res=[]
+            idx = 0
+            for (y of Y.slice(1, Y.length)){
+                res.push(h[idx] * y)
+                idx+=1
+						}
+						tr = document.createElement('tr')
+						td = document.createElement('td')
+						td.textContent = names[5]
+						tr.appendChild(td)
+						for (let j = 0; j < document.getElementsByClassName("d").length; j++) {
+								let td = document.createElement('td')
+								td.textContent = res[j]
+								tr.appendChild(td)
+						}
+						td = document.createElement('td')
+						td.textContent = res.reduce((acc, val) => acc + val)
+						tr.appendChild(td)
+						table.appendChild(tr)
+
+						document.body.appendChild(table)
+						// console.log(history)
+        }
+    </script>
+</body>
