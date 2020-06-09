@@ -25,8 +25,8 @@ class Window():
 		self.labels[4]['text'] = 'Результат:'
 		self.labels[4].place(x = 400, y = 40)
 
-		self.labels[5].place(x = 400, y = 80)
-		self.labels[6].place(x = 400, y = 160)
+		self.labels[5].place(x = 500, y = 80)
+		self.labels[6].place(x = 500, y = 160)
 
 		self.button = Button(root,
 			font = ('Comic Sans MS', 12),
