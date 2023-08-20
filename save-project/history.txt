@@ -1,0 +1,37 @@
+// SELENIUM
+
+sudo apt install openjdk-8-jre
+sudo apt install firefox chromium-browser
+wget https://chromedriver.storage.googleapis.com/76.0.3809.68/chromedriver_linux64.zip
+unzip chromedriver_linux64.zip
+sudo mv chromedriver /usr/local/bin/chromedriver
+sudo chown root:root /usr/local/bin/chromedriver
+sudo chmod +x /usr/local/bin/chromedriver
+// Download geckodriver-v0.33.0-linux64.tar.gz  from https://github.com/mozilla/geckodriver/releases
+cd Downloads/
+tar xfv geckodriver-v0.33.0-linux64.tar.gz
+sudo mv geckodriver /usr/local/bin/geckodriver
+sudo chown root:root /usr/local/bin/geckodriver
+sudo chmod +x /usr/local/bin/geckodriver
+wget https://selenium-release.storage.googleapis.com/3.141/selenium-server-standalone-3.141.59.jar
+java -version
+java -jar selenium-server-standalone-3.141.59.jar
+
+
+
+
+// PUPPETEER
+
+wget https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh
+bash install.sh
+source ~/.bashrc
+nvm -v
+nvm list-remote
+nvm install v18.17.1
+nvm install node
+node -v
+npm -v
+cd project/
+npm i puppeteer --save
+node node_modules/puppeteer/install.js
+node index.js
